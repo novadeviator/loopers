@@ -5,7 +5,7 @@ Loopers is a simple SuperCollider program which enables instant recording and re
 
 
 TODO
-====
+----
 
 - [x] recording live input into a buffer (10s?) (auto resizable?)
 - [ ] control input level
@@ -20,7 +20,7 @@ TODO
 
 - [ ] reverb on input signal
 - [ ] control amount of reverb on input signal
-- [x] reverb on output signal
+- [ ] reverb on output signal
 - [ ] control amount of reverb in output signal
 
 ADVANCED/FUTURE:
