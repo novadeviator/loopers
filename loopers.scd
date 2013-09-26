@@ -65,11 +65,15 @@ SynthDef( "LoopPlayer", {
 ~loopersView  = View.new(~window,Rect(0,0,1200,100));
 ~loopersView.layout = HLayout();
 
+~loopRecorders = Array.fill(10);
+~loopPlayers = Array.fill(10);
+
 // start iteration
-(100..109).do({ |n|
+(10).do({ |n|
 
 	// initialize a buffer
 	("init buffer number"+n.value).postln;
+	// ~buffers[n] =
 	Buffer.alloc(s, s.sampleRate * 10, 1, bufnum:n);
 
 
@@ -78,11 +82,18 @@ SynthDef( "LoopPlayer", {
 			// rec button
 			Button(~loopersView, Rect())
 			.states_([["rec"++n, Color.white, Color.grey(0.2)],["recording", Color.black, Color.red]])
-			.action_({ arg button;
+			.action_({
+				arg button;
 				if( button.value == 1, {
-					~recorder0 = Synth("BufferRecorder", [\bufnum, n]);
+					var recorder;
+					recorder = Synth("BufferRecorder", [\bufnum, n]);
+					~loopRecorders[n] = recorder;
+
 					("buffer"+n.value+"recording ...").postln;
-					AppClock.sched(10.0, { button.value = 0; nil; });
+					AppClock.sched(10.0, {
+						button.value = 0;
+						~loopRecorders[n].free;
+						nil; });
 				})
 			}),
 
@@ -90,10 +101,13 @@ SynthDef( "LoopPlayer", {
 			Button(~loopersView, Rect())
 			.states_([["play"++n, Color.white, Color.grey(0.2)],["play"++n, Color.black, Color.green]])
 			.action_({ arg button;
+				var player;
 				if(button.value == 1, { // if button value is 1 we start a synth
-					~loopPlayer0 = Synth(\LoopPlayer).set(\bufnum, n, \amp, 0, \rate, 1);
+					player = Synth(\LoopPlayer).set(\bufnum, n, \amp, 0, \rate, 1);
+					~loopPlayers[n] = player;
 					("buffer"+n.value+"playing ...").postln;
-				}, { ~loopPlayer0.free;
+				}, {
+						~loopPlayers[n].free;
 						("buffer"+n.value+"stopping playback ...").postln;
 				}); // else we free the synth
 			}),
@@ -103,9 +117,9 @@ SynthDef( "LoopPlayer", {
 			.states_([["forward", Color.white, Color.grey(0.2)],["backward", Color.black, Color.grey(0.8)]])
 			.action_({ arg button;
 				if(button.value == 1, {
-					~loopPlayer0.set(\rate, -1);
+					~loopPlayers[n].set(\rate, -1);
 					("buffer"+n.value+"reverse play ...").postln;
-				}, { ~loopPlayer0.set(\rate, 1);
+					}, { ~loopPlayers[n].set(\rate, 1);
 					("buffer"+n.value+"forward play ...").postln;
 				});
 			});
@@ -119,7 +133,7 @@ SynthDef( "LoopPlayer", {
 		.orientation_(\vertical)
 		.value_(0).step_(0.001)
 		.action_({ arg gain;
-			~loopPlayer0.set(\amp, gain.value.linexp(0,1,0.01,3,nil)-0.01 * 3);
+			~loopPlayers[n].set(\amp, gain.value.linexp(0,1,0.01,3,nil)-0.01 * 3);
 			("player"+n.value+"gain:"+gain.value).postln;
 		})
 	);
