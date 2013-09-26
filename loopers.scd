@@ -5,12 +5,10 @@ Loopers
 
 *********************************************************************************************** */
 
-/************************************************************************************************/
+// Synth definitions
+(
 
-// init 10 buffers from 0-9
-(0..9).collect({ |n| Buffer.alloc(s, s.sampleRate * 10, 1, bufnum:n) });
-
-( // buffer recorder Synth definition
+// buffer recorder
 SynthDef( "BufferRecorder", { | bufnum = 0 |
 
 	var input;
@@ -19,10 +17,8 @@ SynthDef( "BufferRecorder", { | bufnum = 0 |
 	RecordBuf.ar(input, bufnum, doneAction: 2, loop: 0);
 
 }).add;
-)
 
-
-( // LoopPlayer Synth definition
+// LoopPlayer Synth definition
 SynthDef( "LoopPlayer", {
 
 	arg amp=0, rate=1, bufnum=0;
@@ -53,24 +49,14 @@ SynthDef( "LoopPlayer", {
 
 }).add;
 )
-/*
-(
-// meter Input levels
-x = { var input, noise, imp, delimp, mul = 1;
-    imp = Impulse.kr(10);
-    delimp = Delay1.kr(imp);
-	input = SoundIn.ar(0) * mul;
-    // measure rms and Peak
-    SendReply.kr(imp, '/inputlevels', [Amplitude.kr(input), K2A.ar(Peak.ar(input, delimp).lag(0, 3))]);
-    input * 0;
-}.play;
-)
-*/
+
+
 /*********************************************************************************************/
 
 ( // GUI
 
 
+"===================== starting loopers GUI =========================".postln;
 
 ~window = Window.new("Loopers", Rect(5, 5,width:1350,height:250)).front;
 
@@ -78,27 +64,15 @@ x = { var input, noise, imp, delimp, mul = 1;
 // LOOPERS SECTION ////////////////////////////////////////////////////////////
 ~loopersView  = View.new(~window,Rect(0,0,1200,100));
 ~loopersView.layout = HLayout();
-/*
-
-~loopersView.layout.add(
-	~inputLevelIndicator = LevelIndicator(~window, Rect(10,10,4,84)).maxWidth_(4);
-
-			o = OSCFunc( {arg msg;
-				{
-					~inputLevelIndicator.value = msg[3].ampdb.linlin(-40, 0, 0, 1);
-					~inputLevelIndicator.peakLevel = msg[4].ampdb.linlin(-40, 0, 0, 1);
-					~inputLevelIndicator.warning_(-6.dbamp);
-					~inputLevelIndicator.critical_(-3.dbamp);
-					~inputLevelIndicator.drawsPeak_(true);
-					~inputLevelIndicator.background_(Color.clear);
-					}.defer;
-				}, '/inputlevels', s.addr);
-	);
-*/
-
 
 // start iteration
-(0..9).do({ |n|
+(100..109).do({ |n|
+
+	// initialize a buffer
+	("init buffer number"+n.value).postln;
+	Buffer.alloc(s, s.sampleRate * 10, 1, bufnum:n);
+
+
 	~loopersView.layout.add(
 		VLayout(
 			// rec button
@@ -107,6 +81,7 @@ x = { var input, noise, imp, delimp, mul = 1;
 			.action_({ arg button;
 				if( button.value == 1, {
 					~recorder0 = Synth("BufferRecorder", [\bufnum, n]);
+					("buffer"+n.value+"recording ...").postln;
 					AppClock.sched(10.0, { button.value = 0; nil; });
 				})
 			}),
@@ -117,7 +92,10 @@ x = { var input, noise, imp, delimp, mul = 1;
 			.action_({ arg button;
 				if(button.value == 1, { // if button value is 1 we start a synth
 					~loopPlayer0 = Synth(\LoopPlayer).set(\bufnum, n, \amp, 0, \rate, 1);
-				}, { ~loopPlayer0.free; }); // else we free the synth
+					("buffer"+n.value+"playing ...").postln;
+				}, { ~loopPlayer0.free;
+						("buffer"+n.value+"stopping playback ...").postln;
+				}); // else we free the synth
 			}),
 
 			// reverse/backward button
@@ -126,7 +104,10 @@ x = { var input, noise, imp, delimp, mul = 1;
 			.action_({ arg button;
 				if(button.value == 1, {
 					~loopPlayer0.set(\rate, -1);
-				}, { ~loopPlayer0.set(\rate, 1); });
+					("buffer"+n.value+"reverse play ...").postln;
+				}, { ~loopPlayer0.set(\rate, 1);
+					("buffer"+n.value+"forward play ...").postln;
+				});
 			});
 
 		) // end of a VLayout
@@ -137,26 +118,11 @@ x = { var input, noise, imp, delimp, mul = 1;
 		Slider(~loopersView, Rect(height:30))
 		.orientation_(\vertical)
 		.value_(0).step_(0.001)
-		.action_({ arg gain; ~loopPlayer0.set(\amp, gain.value.linexp(0,1,0.01,3,nil)-0.01 * 3);
-			gain.value.postln; })
+		.action_({ arg gain;
+			~loopPlayer0.set(\amp, gain.value.linexp(0,1,0.01,3,nil)-0.01 * 3);
+			("player"+n.value+"gain:"+gain.value).postln;
+		})
 	);
-
-/*
-	// output level meter
-	~loopersView.layout.add(
-
-		~outputLevelIndicator++n = LevelIndicator(~loopersView, Rect(0,0,4,100));
-				o = OSCFunc( {arg msg;
-					{	~outputLevelIndicator++n.value = msg[3].ampdb.linlin(-40, 0, 0, 1);
-						~outputLevelIndicator++n.peakLevel = msg[4].ampdb.linlin(-40, 0, 0, 1);
-						~outputLevelIndicator++n.warning_(-6.dbamp);
-						~outputLevelIndicator++n.critical_(-3.dbamp);
-						~outputLevelIndicator++n.drawsPeak_(true);
-						~outputLevelIndicator++n.background_(Color.clear);
-					}.defer;
-				}, '/outputlevel'++n, s.addr);
-	);
-*/
 });
 
 )
