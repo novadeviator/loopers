@@ -67,14 +67,14 @@ SynthDef( "LoopPlayer", {
 
 ~loopRecorders = Array.fill(10);
 ~loopPlayers = Array.fill(10);
+~buffers = Array.fill(10);
 
 // start iteration
 (10).do({ |n|
 
 	// initialize a buffer
 	("init buffer number"+n.value).postln;
-	// ~buffers[n] =
-	Buffer.alloc(s, s.sampleRate * 10, 1, bufnum:n);
+	~buffers[n] = Buffer.alloc(s, s.sampleRate * 10, 1);
 
 
 	~loopersView.layout.add(
@@ -86,13 +86,13 @@ SynthDef( "LoopPlayer", {
 				arg button;
 				if( button.value == 1, {
 					var recorder;
-					recorder = Synth("BufferRecorder", [\bufnum, n]);
+					recorder = Synth("BufferRecorder", [\bufnum, ~buffers[n]]);
 					~loopRecorders[n] = recorder;
 
-					("buffer"+n.value+"recording ...").postln;
+					(""+~buffers[n]+"recording ...").postln;
 					AppClock.sched(10.0, {
 						button.value = 0;
-						~loopRecorders[n].free;
+						// ~loopRecorders[n].free;
 						nil; });
 				})
 			}),
@@ -103,12 +103,12 @@ SynthDef( "LoopPlayer", {
 			.action_({ arg button;
 				var player;
 				if(button.value == 1, { // if button value is 1 we start a synth
-					player = Synth(\LoopPlayer).set(\bufnum, n, \amp, 0, \rate, 1);
+					player = Synth(\LoopPlayer).set(\bufnum, ~buffers[n], \amp, 0, \rate, 1);
 					~loopPlayers[n] = player;
-					("buffer"+n.value+"playing ...").postln;
+					(""+~buffers[n]+"playing ...").postln;
 				}, {
 						~loopPlayers[n].free;
-						("buffer"+n.value+"stopping playback ...").postln;
+						(""+~buffers[n]+"stopping playback ...").postln;
 				}); // else we free the synth
 			}),
 
@@ -118,9 +118,9 @@ SynthDef( "LoopPlayer", {
 			.action_({ arg button;
 				if(button.value == 1, {
 					~loopPlayers[n].set(\rate, -1);
-					("buffer"+n.value+"reverse play ...").postln;
+					(""+~buffers[n]+"reverse play ...").postln;
 					}, { ~loopPlayers[n].set(\rate, 1);
-					("buffer"+n.value+"forward play ...").postln;
+					(""+~buffers[n]+"forward play ...").postln;
 				});
 			});
 
@@ -134,7 +134,7 @@ SynthDef( "LoopPlayer", {
 		.value_(0).step_(0.001)
 		.action_({ arg gain;
 			~loopPlayers[n].set(\amp, gain.value.linexp(0,1,0.01,3,nil)-0.01 * 3);
-			("player"+n.value+"gain:"+gain.value).postln;
+			(""+~buffers[n]+"gain:"+gain.value).postln;
 		})
 	);
 });
