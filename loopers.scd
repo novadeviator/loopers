@@ -2,11 +2,9 @@
 Loopers
 # by nova@deviator.si
 # GNU General Public Licence
-
 *********************************************************************************************** */
 
-// Synth definitions
-(
+( // Synth definitions
 
 // buffer recorder
 SynthDef( "BufferRecorder", { | bufnum = 0 |
@@ -49,36 +47,86 @@ SynthDef( "LoopPlayer", {
 
 }).add;
 )
-
-
 /*********************************************************************************************/
+
+( // initialize buffers
+(10).do({ |n|
+
+	// initialize a buffer
+	~buffers[n] = Buffer.alloc(s, s.sampleRate * 10, 1);
+	("initialized buffer"+~buffers[n]).postln;
+});
+)
+
+
+
 
 ( // GUI
 
-
 "===================== starting loopers GUI =========================".postln;
 
-~window = Window.new("Loopers", Rect(5, 5,width:1350,height:250)).front;
+~window = Window.new("Loopers", Rect(5, 600,width:1200,height:110)).front;
 
-
-// LOOPERS SECTION ////////////////////////////////////////////////////////////
+// LOOPERS SECTION
 ~loopersView  = View.new(~window,Rect(0,0,1200,100));
 ~loopersView.layout = HLayout();
 
 ~loopRecorders = Array.fill(10);
 ~loopPlayers = Array.fill(10);
 ~buffers = Array.fill(10);
+~volSlider = Array.fill(10);
+~midiCc = Array.with(12,13,14,15,28,29,30,31,44,45);
+
+/*
+~loopersView.layout.add(
+		VLayout(
+		Button(~loopersView, Rect())
+		.states_([["panic?", Color.white, Color.grey(0.2)],["freed all synths", Color.black, Color.green(0.8)]])
+		.action_({ arg button;
+			if(button.value == 1, {
+				(10).do({ |n|
+					~loopPlayers[n].free;
+					~loopRecorders[n].free;
+					"freed player n...".postln;
+				});
+			}, {
+					(10).do({ |n|
+
+					~loopPlayers[n] = Synth(\LoopPlayer).set(\bufnum, ~buffers[n], \amp, 0, \rate, 1);
+					"freed player n...".postln;	});
+
+			});
+	)
+);
+
+*/
+
 
 // start iteration
 (10).do({ |n|
 
 	// initialize a buffer
-	("init buffer number"+n.value).postln;
-	~buffers[n] = Buffer.alloc(s, s.sampleRate * 10, 1);
-
+	//~buffers[n] = Buffer.alloc(s, s.sampleRate * 10, 1);
+	//("initialized buffer"+~buffers[n]).postln;
 
 	~loopersView.layout.add(
 		VLayout(
+
+			// play button
+			Button(~loopersView, Rect())
+			.states_([[""++n, Color.white, Color.grey(0.2)],["play"++n, Color.black, Color.green]])
+			.action_({ arg button;
+				var player;
+				if(button.value == 1, { // if button value is 1 we start a synth
+					player = Synth(\LoopPlayer).set(\bufnum, ~buffers[n], \amp, 0, \rate, 1);
+					~loopPlayers[n] = player;
+					(""+~buffers[n]+"playing ...").postln;
+				}, {
+						~loopPlayers[n].free;
+						(""+~buffers[n]+"stopping playback ...").postln;
+				}); // else we free the synth
+			}),
+
 			// rec button
 			Button(~loopersView, Rect())
 			.states_([["rec"++n, Color.white, Color.grey(0.2)],["recording", Color.black, Color.red]])
@@ -97,20 +145,7 @@ SynthDef( "LoopPlayer", {
 				})
 			}),
 
-			// play button
-			Button(~loopersView, Rect())
-			.states_([["play"++n, Color.white, Color.grey(0.2)],["play"++n, Color.black, Color.green]])
-			.action_({ arg button;
-				var player;
-				if(button.value == 1, { // if button value is 1 we start a synth
-					player = Synth(\LoopPlayer).set(\bufnum, ~buffers[n], \amp, 0, \rate, 1);
-					~loopPlayers[n] = player;
-					(""+~buffers[n]+"playing ...").postln;
-				}, {
-						~loopPlayers[n].free;
-						(""+~buffers[n]+"stopping playback ...").postln;
-				}); // else we free the synth
-			}),
+
 
 			// reverse/backward button
 			Button(~loopersView, Rect())
@@ -129,7 +164,7 @@ SynthDef( "LoopPlayer", {
 
 	~loopersView.layout.add(
 		// volume slider
-		Slider(~loopersView, Rect(height:30))
+		~volSlider[n] = Slider(~loopersView, Rect(height:30))
 		.orientation_(\vertical)
 		.value_(0).step_(0.001)
 		.action_({ arg gain;
@@ -137,15 +172,50 @@ SynthDef( "LoopPlayer", {
 			(""+~buffers[n]+"gain:"+gain.value).postln;
 		})
 	);
+
+	MIDIdef.cc(\cc++n, { |val|
+		~loopPlayers[n].set(\amp, val/40);
+		AppClock.sched(0.1, {
+			~volSlider[n].value_(val*0.1);
+			val.postln;
+			nil;
+		});
+
+	}, ~midiCc[n]);
+});
+
+
+
+/*
+MIDIdef.cc(\cc12, { |val|
+	~loopPlayers[0].set(\amp, val/70)
+}, 12);
+*/
+
+
+
+
+~window.onClose_({
+	(10).do({ |n|
+		// ~buffers[n].free;
+		~loopPlayers[n].free;
+		~loopRecorders[n].free;
+		~midiCc[n].free;
+	});
 });
 
 )
-
 /*********************************************************************************************/
 
 
+( // free buffers
+(10).do({ |n|
+	"freeing buffer"+~buffers[n].postln;
+	~buffers[n].free;
+});
+)
 
+Buffer.freeAll;
 
-
-
-
+///////////////////
+~volSlider[0].value_(0);
